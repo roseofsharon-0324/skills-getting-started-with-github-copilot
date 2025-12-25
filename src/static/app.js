@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Build participants list HTML
         const participantsListHtml =
           details.participants && details.participants.length > 0
-            ? details.participants.map((p) => `<li>${p}</li>`).join("")
+            ? details.participants.map((p) => `<li>${p} <button class='delete-btn' data-participant='${p}' data-activity='${name}' aria-label='Remove ${p}'>🗑️</button></li>`).join("")
             : `<li class="no-participants">No participants yet</li>`;
 
         activityCard.innerHTML = `
@@ -76,10 +76,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (response.ok) {
         messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        messageDiv.className = "message success";
         signupForm.reset();
 
-        // Refresh activities and select options to reflect new participant
+        // Optimistically add the participant to the DOM so the user sees the change immediately
+        const activityCards = Array.from(activitiesList.querySelectorAll('.activity-card'));
+        const activityCard = activityCards.find((c) => c.querySelector('h4') && c.querySelector('h4').textContent === activity);
+        if (activityCard) {
+          const participantsUl = activityCard.querySelector('.participants-list');
+          const noPart = participantsUl.querySelector('.no-participants');
+          if (noPart) noPart.remove();
+          const li = document.createElement('li');
+          li.innerHTML = `${email} <button class='delete-btn' data-participant='${email}' data-activity='${activity}'>🗑️</button>`;
+          participantsUl.appendChild(li);
+
+          // Decrement availability display
+          const availabilityP = Array.from(activityCard.querySelectorAll('p')).find(p => p.innerHTML.includes('Availability:'));
+          if (availabilityP) {
+            const match = availabilityP.textContent.match(/(\d+) spots left/);
+            if (match) {
+              const newSpots = Number(match[1]) - 1;
+              availabilityP.innerHTML = `<strong>Availability:</strong> ${newSpots} spots left`;
+            }
+          }
+        }
+
+        // Fetch latest activities to ensure UI stays in sync with the server
         fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
